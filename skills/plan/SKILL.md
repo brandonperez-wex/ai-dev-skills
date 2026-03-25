@@ -81,6 +81,7 @@ Break the work into ordered verticals. Each vertical has:
 - **Does** — what it accomplishes (one sentence)
 - **Done when** — the observable outcome that proves it works
 - **Test** — the integration test assertion that verifies it
+- **Skills** — (optional) skills to inject into the build context for this vertical
 - **Deps** — which other verticals must be complete first
 
 **Vertical 0 is always the walking skeleton** — thinnest end-to-end path proving the infrastructure works.
@@ -93,10 +94,23 @@ Example:
 - **Does:** `qb customers list` returns paginated customer list
 - **Done when:** Command returns formatted customer records with name, email, balance
 - **Test:** Integration test hits sandbox API, asserts array with required fields
+- **Skills:** rust-quality
 - **Deps:** V0 (auth + config established)
 ```
 
 The "done when" + "test" lines ARE the test contract — write them as concrete assertions, specific enough that build can translate directly into test code without ambiguity.
+
+### 4b. Suggest Build Skills
+
+After defining verticals, suggest which skills the build phase will need. Check:
+- **Language/runtime** — is there a language-specific quality skill? (e.g., `rust-quality`)
+- **Domain** — does this touch agent/MCP patterns? (`ai-agent-building`)
+- **Infrastructure** — does this project lack CI/linting? (`boilerplate-cicd`)
+- **Available skills** — scan `~/.claude/skills/` for relevant matches
+
+Present suggestions to the user: "For this Rust project, I'd inject `rust-quality` and `coding-standards` into each vertical's build context. Want to add or change any?"
+
+The user confirms. Record confirmed skills in each vertical's `Skills` field or as a plan-level default.
 
 ### 5. Save the Plan
 
@@ -144,6 +158,9 @@ When the first verticals have done criteria + test contracts:
 
 ## Non-Goals
 - [What this explicitly does NOT do]
+
+## Build Skills (default for all verticals)
+- [skill-name — why it's needed]
 
 ## Verticals
 
