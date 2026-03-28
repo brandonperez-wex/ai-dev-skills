@@ -52,7 +52,11 @@ Before writing any code:
 If pre-flight fails, fix it before writing feature code. Infrastructure problems compound.
 
 <HARD-GATE>
-Do NOT write feature code until pre-flight passes: build runs, tests pass, at least one vertical has done criteria + a validated test contract from test-planning. If no test plan exists, stop and invoke test-planning — do not improvise test contracts.
+Do NOT write feature code until pre-flight passes: build runs, existing tests pass, at least one vertical has committed test files from test-writer. If no test files exist, stop — invoke test-planning then test-writer first.
+</HARD-GATE>
+
+<HARD-GATE>
+NEVER modify test files written by test-writer. Tests are locked contracts that define "done." If a test appears wrong, escalate to the user or back to test-writer — do not adjust assertions, expected values, or test logic to match your implementation. The structural separation between test authoring and implementation exists to prevent the #1 AI testing failure: changing tests to match buggy code.
 </HARD-GATE>
 
 ## Mode Selection
@@ -83,17 +87,19 @@ After the walking skeleton passes, report to the user: "Walking skeleton green �
 
 ### Execution Loop (per vertical)
 
-For each ready vertical in dependency order, use the **tdd** skill to execute:
+For each ready vertical in dependency order:
 
-#### 1. Invoke tdd for the Vertical
+#### 1. Implement Against Locked Tests
 
-Pass the vertical's test contract (from test-planning) to the **tdd** skill. tdd will:
-- Write the integration test from the contract (Red)
-- Build the slice to make it pass (Green)
-- Refactor while keeping tests green
-- Enforce mock boundaries (controlled deps = real, uncontrolled = mock at adapter)
+The **test-writer** skill has already committed failing integration tests for this vertical. Your job is to make them pass — following TDD methodology (red-green-refactor):
 
-The tdd skill owns the red-green-refactor loop. Build owns the sequencing and verification between verticals.
+- Read the failing test to understand what "done" looks like
+- Implement the minimum code to make the test green
+- Add unit tests at each layer during implementation (route, service, adapter)
+- Refactor while keeping all tests green
+- Follow mock boundaries: controlled deps (your DB, server) = real, uncontrolled (third-party APIs) = mock at adapter
+
+**The test is the source of truth, not the implementation.** If the test fails, debug the implementation. If you believe the test is wrong, escalate to the user — do not modify the test.
 
 #### 2. Verify — No Regressions
 
@@ -115,7 +121,7 @@ Commit the vertical. Brief status to user: "V1 done — integration test green, 
 
 Move to the next ready vertical. If the next vertical is a **headline** (not detailed):
 - Pause and tell the user: "V4 needs done criteria and a test contract before I can build it"
-- Either the user details it now, invokes test-planning, or you skip to a different ready vertical
+- Either the user details it now (via test-planning → test-writer), or you skip to a different ready vertical
 
 ---
 
@@ -134,8 +140,8 @@ Fresh subagent per vertical + two-stage review. The controller (you) stays clean
 #### 1. Dispatch Implementer
 
 Provide the subagent with:
-- Full vertical description (done criteria + test contract from test-planning)
-- Instruction to use the **tdd** skill for execution (red-green-refactor with mock boundaries)
+- Full vertical description (done criteria + test files committed by test-writer)
+- Instruction: implement against the locked tests — do NOT modify test files
 - Constraints from the plan
 - Context: what previous verticals built, architectural decisions
 - Working directory

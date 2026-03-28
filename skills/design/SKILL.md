@@ -93,11 +93,20 @@ Test-planning will:
 - Define integration test contracts for each vertical (setup, action, input, expected output, side effects, error cases)
 - Establish mock boundaries (controlled deps = real, uncontrolled deps = mock at adapter)
 - Validate contracts with the user at checkpoints
-- Produce the test plan that feeds into tdd during build
+- Produce the test plan that feeds into **test-writer**
 
 A vertical without a user-validated test contract is a headline, not a ready vertical.
 
-### 4. Review (optional)
+### 4. Test Writing
+
+Invoke the **test-writer** skill to translate validated contracts into executable test code. test-writer will:
+- Write integration tests from each contract using AAA structure
+- Confirm every test fails for the right reason (red)
+- Commit tests as locked artifacts that build implements against
+
+Tests can be written per-vertical as contracts are validated — you don't need all contracts before starting.
+
+### 5. Review (optional)
 
 If the user wants teammate review:
 - Invoke **commit-and-pr** to push the plan and create a PR
@@ -105,7 +114,7 @@ If the user wants teammate review:
 
 For solo projects: skip to build.
 
-### 5. Transition to Build
+### 6. Transition to Build
 
 **You don't wait for the complete plan.** When the first verticals are ready:
 - Confirm with the user
