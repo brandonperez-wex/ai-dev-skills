@@ -15,6 +15,7 @@ allowed-tools:
   - Grep
   - Bash
   - Task
+  - AskUserQuestion
 ---
 
 # Test Writer
@@ -43,6 +44,11 @@ expected values, not the test logic, not even "just a small fix." If a test
 appears wrong during build, the test-writer's job is done — escalate to the
 user or back to test-planning. Tests are contracts, not suggestions. Once
 committed, they define "done" and only the user can change that definition.
+WHY: The entire pipeline depends on test-writer and build being separate
+phases with separate authors. If the same agent that writes implementation
+can also edit tests, it WILL adjust assertions to match buggy code — this is
+the #1 measured failure mode in AI-assisted development. The structural
+separation is load-bearing. Removing it collapses the feedback loop.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -98,10 +104,11 @@ Each of these maps directly to a test.
 ### 3. Read Existing Test Patterns
 
 Before writing new tests, read existing test files in the project. Match:
-- File naming convention (e.g., `*.test.ts`, `*.spec.ts`)
+- File naming convention (e.g., `*.test.ts`, `*_test.go`, `test_*.py`, `*Test.java`)
 - Import patterns (test utilities, helpers, factories)
-- Setup/teardown patterns (how the project handles DB cleanup)
+- Setup/teardown patterns (how the project handles DB cleanup, fixtures)
 - Assertion style (what expect/assert patterns are used)
+- Test runner configuration (if any)
 
 Write tests that look like they belong in this codebase. Consistency matters.
 
@@ -109,28 +116,29 @@ Write tests that look like they belong in this codebase. Consistency matters.
 
 Structure every test as **Arrange-Act-Assert**. AAA makes test failures self-diagnosing: the Arrange shows what state existed, the Act shows what happened, and the Assert shows what was expected vs. actual. A reader debugging a failure at 2 AM needs this structure.
 
-```typescript
-describe('Token refresh with network error', () => {
-  it('When refresh fails with network error, Then credential stays active and returns 503', async () => {
-    // Arrange — set up the preconditions from the contract
-    const store = new SqliteTokenStore(testDbPath);
-    await storeTestCredential(store, 'user-1', 'google', expiredTokenSet);
-    const mockFetch = async () => { throw new TypeError('fetch failed'); };
+Use the project's language and test framework. The pattern is universal:
 
-    // Act — perform the operation under test
-    const res = await app.request('/credentials/user-1/google');
-
-    // Assert — verify the contract's expected output and side effects
-    expect(res.status).toBe(503);
-    const body = await res.json();
-    expect(body.error).toBe('temporarily_unavailable');
-
-    // Assert side effects — credential status unchanged
-    const cred = await store.getCredential('user-1', 'google');
-    expect(cred.status).toBe('active');
-  });
-});
 ```
+test "When refresh fails with network error, Then credential stays active and returns 503":
+
+  // Arrange — set up the preconditions from the contract
+  store = create_test_store(db_path)
+  store.save_credential("user-1", "google", expired_token_set)
+  mock_http_client to throw network_error on token refresh
+
+  // Act — perform the operation under test
+  response = HTTP GET /credentials/user-1/google
+
+  // Assert — verify the contract's expected output
+  assert response.status == 503
+  assert response.body.error == "temporarily_unavailable"
+
+  // Assert side effects — credential status unchanged
+  credential = store.get_credential("user-1", "google")
+  assert credential.status == "active"
+```
+
+Adapt this to whatever test framework the project uses (Vitest, pytest, JUnit, Go testing, etc.). The three phases and their purpose are the constant — syntax varies.
 
 ### 5. Write Error Case Tests
 
@@ -216,17 +224,17 @@ Bad:  'should work correctly'
 Bad:  'error test'
 ```
 
-**For describe blocks**, name the component or feature under test:
+**For test groups/suites**, name the component or feature under test, then nest by scenario:
 
-```typescript
-describe('GET /credentials/:userId/:provider', () => {
-  describe('When credential requires token refresh', () => {
-    it('Then refreshes token and returns fresh env vars', ...);
-    it('When refresh fails with network error, Then returns 503 and keeps credential active', ...);
-    it('When refresh fails with invalid_grant, Then returns 401 and marks needs_reauth', ...);
-  });
-});
 ```
+suite: "GET /credentials/:userId/:provider"
+  group: "When credential requires token refresh"
+    test: "Then refreshes token and returns fresh env vars"
+    test: "When refresh fails with network error, Then returns 503 and keeps credential active"
+    test: "When refresh fails with invalid_grant, Then returns 401 and marks needs_reauth"
+```
+
+Adapt to the project's grouping mechanism (`describe`/`it`, `class`/`def test_`, `func Test`, etc.).
 
 ## Test Isolation
 
